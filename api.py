@@ -105,6 +105,33 @@ class nomad_api():
         except FileNotFoundError:
             print("File not found. Please check the path and try again.")
 
+
+    def get_upload_id(token):
+
+        try:
+            # Open the file in binary mode
+            with open(file_path, 'rb') as file:
+                # Set the upload URL and headers
+                upload_url = f"{base_url}/uploads?roles=main_author&include_all=true&page_size=10&order=asc"
+                headers = {
+                    "Authorization": f"Bearer {token}"
+                }
+                files = {
+                    "file": file
+                }
+
+                # Send the POST request to upload the file
+                response = requests.post(upload_url, headers=headers, files=files)
+
+                if response.status_code == 200:
+                    print("File uploaded successfully!")
+                    print(f"Response: {response.status_code} - {response.text}")
+                else:
+                    print(f"File upload failed: {response.status_code} - {response.text}")
+
+        except FileNotFoundError:
+            print("File not found. Please check the path and try again.")
+
 if __name__ == "__main__":
     username = input("Enter your NOMAD Lab username: ")
     password = getpass("Enter your NOMAD Lab password: ")
@@ -117,5 +144,5 @@ if __name__ == "__main__":
         # Upload file
         full_name = nomad_api.get_username_me(token)
         new_file_path = xrdml.modify_xrdml(file_path, full_name, sample_id)
+        #nomad_api.get_upload_id(token)
         nomad_api.upload_file(new_file_path, token)
-        print(f"Full name: {full_name}")
