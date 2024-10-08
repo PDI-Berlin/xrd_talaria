@@ -2,6 +2,7 @@ import requests
 from getpass import getpass
 import xml.etree.ElementTree as ET
 import yaml
+import os
 
 base_url = "http://intra8.pdi-berlin.de/nomad-oasis/api/v1"
 
@@ -133,18 +134,57 @@ class nomad_api():
         except FileNotFoundError:
             print("File not found. Please check the path and try again.")
 
+def get_file_path(config, username):
+    if username in config and 'file_path' in config[username]:
+        current_path = config[username]['file_path']
+        change_path = input(f"Current file path is {current_path}. Do you want to change it? (y/n): ").lower()
+        if change_path == 'y':
+            new_path = input("Enter the new file path: ")
+            config[username]['file_path'] = new_path
+            return new_path
+        return current_path
+    else:
+        new_path = input("Enter the path of the file you want to upload: ")
+        if username not in config:
+            config[username] = {}
+        config[username]['file_path'] = new_path
+        return new_path
+
+def save_config(config):
+    with open("config.yml", 'w') as f:
+        yaml.dump(config, f)
+
 if __name__ == "__main__":
     username = input("Enter your NOMAD Lab username: ")
     password = getpass("Enter your NOMAD Lab password: ")
-    sample_id = input("Enter Sample name (Load Sample) : ")
-    file_path = input("Enter the path of the file you want to upload: ")
+
+    # Load or create config
+    if os.path.exists("config.yml"):
+        with open("config.yml", 'r') as f:
+            config = yaml.safe_load(f) or {}
+    else:
+        config = {}
+
     # Authenticate user
     token = nomad_api.authenticate(username, password)
 
     if token:
-        config = yaml.safe_load(open("config.yml"))
-        # Upload file
         full_name = nomad_api.get_username_me(token)
-        new_file_path = xrdml.modify_xrdml(file_path, full_name, sample_id)
-        #nomad_api.get_upload_id(token)
-        nomad_api.upload_file(new_file_path, token)
+        sample_id = input("Enter initial Sample name (Load Sample): ")
+
+        while True:
+            file_path = get_file_path(config, username)
+            save_config(config)
+
+            new_file_path = xrdml.modify_xrdml(file_path, full_name, sample_id)
+            nomad_api.upload_file(new_file_path, token)
+
+            upload_more = input("Do you want to upload another growth? (y/n): ").lower()
+            if upload_more != 'y':
+                break
+
+            change_sample = input("Do you want to change the sample name? (Unload Sample) (y/n): ").lower()
+            if change_sample == 'y':
+                sample_id = input("Enter new Sample name: ")
+
+        print("File upload process completed.")
